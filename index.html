@@ -1,0 +1,697 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>전국 고등학생 사교육 시간 모평균 추정 시뮬레이터</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@400;600;700;800&display=swap');
+        body {
+            font-family: 'Pretendard', sans-serif;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen">
+
+    <!-- Header -->
+    <header class="bg-white border-b border-slate-200 py-5 px-6 sticky top-0 z-10 shadow-sm">
+        <div class="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
+            <div class="flex items-center gap-3">
+                <div class="bg-indigo-600 text-white p-2 rounded-lg shadow-md shadow-indigo-100">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 002 2h2a2 2 0 002-2z" />
+                    </svg>
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold text-slate-900 tracking-tight">모평균 추정 시뮬레이터</h1>
+                    <p class="text-xs text-slate-500 font-medium">전국 고등학생의 주당 사교육 참여시간 모평균 추정 ($100\%$ 가상 모집단 기반)</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-2 bg-indigo-50 px-4 py-2 rounded-full text-xs font-semibold text-indigo-700">
+                <span class="w-2 h-2 rounded-full bg-indigo-500 animate-pulse"></span>
+                실제 모집단 모평균(μ): <span id="true-mean-display" class="font-bold">12.50</span>시간
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Grid -->
+    <main class="max-w-7xl mx-auto p-4 md:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
+        
+        <!-- Left Sidebar: Settings Panel -->
+        <section class="lg:col-span-4 flex flex-col gap-6">
+            
+            <!-- Parameter Settings -->
+            <div class="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-sm flex flex-col gap-6">
+                <div class="border-b border-slate-100 pb-4">
+                    <h2 class="text-lg font-bold text-slate-900 flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+                        </svg>
+                        시뮬레이션 조건 설정
+                    </h2>
+                    <p class="text-xs text-slate-400 mt-1">표본 크기와 필터링 조건을 선택해 주세요.</p>
+                </div>
+
+                <!-- Sample Size Slider -->
+                <div class="flex flex-col gap-2">
+                    <div class="flex justify-between items-center">
+                        <label for="sample-size-input" class="text-sm font-semibold text-slate-700">표본 크기 (n)</label>
+                        <span id="sample-size-val" class="bg-indigo-50 text-indigo-700 text-xs font-bold px-2.5 py-1 rounded-md">100 명</span>
+                    </div>
+                    <input type="range" id="sample-size-input" min="30" max="1000" value="100" step="10" 
+                           class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600 focus:outline-none">
+                    <div class="flex justify-between text-[10px] text-slate-400 font-semibold px-1">
+                        <span>Min: 30</span>
+                        <span>Max: 1000</span>
+                    </div>
+                </div>
+
+                <!-- Toggles for Sample Refinement -->
+                <div class="flex flex-col gap-3">
+                    <label class="text-sm font-semibold text-slate-700">표본 추출 조건 (중복 선택 가능)</label>
+                    <p class="text-xs text-slate-400 -mt-2">조건이 적용될수록 표본 집단의 동질성이 높아져 표준편차가 감소합니다.</p>
+                    
+                    <div class="flex flex-col gap-2.5 mt-1">
+                        <!-- Toggle 1 -->
+                        <button id="toggle-1" onclick="toggleCondition(1)" class="w-full flex items-center justify-between p-3.5 rounded-xl border text-left transition-all duration-200 bg-slate-50 border-slate-200 hover:border-indigo-300">
+                            <div class="flex items-center gap-3">
+                                <div id="toggle-1-icon" class="w-5 h-5 rounded-full border-2 border-slate-300 bg-white flex items-center justify-center transition-all">
+                                    <div class="w-2.5 h-2.5 rounded-full bg-white"></div>
+                                </div>
+                                <div>
+                                    <p class="text-xs font-bold text-slate-800">① 고등학교 1·2학년 학생만</p>
+                                    <p class="text-[10px] text-slate-400">학년간 격차 제거</p>
+                                </div>
+                            </div>
+                            <span id="toggle-1-badge" class="text-[10px] bg-slate-200 text-slate-600 font-bold px-2 py-0.5 rounded-md">해제됨</span>
+                        </button>
+
+                        <!-- Toggle 2 -->
+                        <button id="toggle-2" onclick="toggleCondition(2)" class="w-full flex items-center justify-between p-3.5 rounded-xl border text-left transition-all duration-200 bg-slate-50 border-slate-200 hover:border-indigo-300">
+                            <div class="flex items-center gap-3">
+                                <div id="toggle-2-icon" class="w-5 h-5 rounded-full border-2 border-slate-300 bg-white flex items-center justify-center transition-all">
+                                    <div class="w-2.5 h-2.5 rounded-full bg-white"></div>
+                                </div>
+                                <div>
+                                    <p class="text-xs font-bold text-slate-800">② 일반고 학생만</p>
+                                    <p class="text-[10px] text-slate-400">특목고/자사고 등 대안 배제</p>
+                                </div>
+                            </div>
+                            <span id="toggle-2-badge" class="text-[10px] bg-slate-200 text-slate-600 font-bold px-2 py-0.5 rounded-md">해제됨</span>
+                        </button>
+
+                        <!-- Toggle 3 -->
+                        <button id="toggle-3" onclick="toggleCondition(3)" class="w-full flex items-center justify-between p-3.5 rounded-xl border text-left transition-all duration-200 bg-slate-50 border-slate-200 hover:border-indigo-300">
+                            <div class="flex items-center gap-3">
+                                <div id="toggle-3-icon" class="w-5 h-5 rounded-full border-2 border-slate-300 bg-white flex items-center justify-center transition-all">
+                                    <div class="w-2.5 h-2.5 rounded-full bg-white"></div>
+                                </div>
+                                <div>
+                                    <p class="text-xs font-bold text-slate-800">③ 학군지 제외</p>
+                                    <p class="text-[10px] text-slate-400">극단적 고비용 집단 제외</p>
+                                </div>
+                            </div>
+                            <span id="toggle-3-badge" class="text-[10px] bg-slate-200 text-slate-600 font-bold px-2 py-0.5 rounded-md">해제됨</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Simulation Action Button -->
+                <button id="sample-btn" onclick="resample()" class="w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-sm shadow-lg shadow-indigo-100 hover:shadow-indigo-200 transition-all active:scale-[0.98] flex items-center justify-center gap-2 mt-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 animate-spin-slow" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.21 12H16" />
+                    </svg>
+                    새로운 표본 추출하기
+                </button>
+            </div>
+
+            <!-- Concept Card: Visual Stats Summary -->
+            <div class="bg-gradient-to-br from-slate-900 to-indigo-950 text-white rounded-2xl p-6 shadow-md border border-slate-800 flex flex-col gap-4">
+                <h3 class="font-bold text-sm text-indigo-300 flex items-center gap-1.5">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    데이터 과학 핵심 원리
+                </h3>
+                <div class="flex flex-col gap-3 text-xs leading-relaxed text-slate-300">
+                    <p>
+                        조건 필터링을 늘릴수록 모집단 혹은 표본집단 내부의 다양성(이질성)이 배제되며 <strong class="text-white">표본표준편차($s$)가 감소</strong>하게 됩니다.
+                    </p>
+                    <p>
+                        표준편차가 작아질수록 <strong class="text-white">표준오차($s/\sqrt{n}$)가 축소</strong>되어 신뢰구간의 길이는 더 짧아지며, 이는 모평균을 <strong class="text-amber-300 font-bold">더욱 정밀하게 추정</strong>할 수 있음을 의미합니다.
+                    </p>
+                </div>
+                <div class="bg-slate-800/60 rounded-xl p-3 border border-slate-700/50 mt-1">
+                    <span class="text-[10px] text-slate-400 block font-semibold mb-1">표준오차(SE) 계산공식</span>
+                    <code class="text-xs text-indigo-300 font-mono">SE = s / sqrt(n)</code>
+                </div>
+            </div>
+        </section>
+
+        <!-- Right Panels: Stats Output & Visualizations -->
+        <section class="lg:col-span-8 flex flex-col gap-6">
+
+            <!-- Stats Results Summary Card -->
+            <div class="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-sm">
+                <div class="border-b border-slate-100 pb-4 mb-5">
+                    <h2 class="text-lg font-bold text-slate-900 flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H3a2 2 0 002-2V5a2 2 0 00-2-2h9l2 2h3a2 2 0 012 2v11a2 2 0 01-2 2z" />
+                        </svg>
+                        추출된 표본 통계 결과
+                    </h2>
+                </div>
+
+                <!-- Core Metrics Grid -->
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                    <div class="bg-slate-50 rounded-xl p-4 border border-slate-100 flex flex-col justify-between">
+                        <span class="text-xs text-slate-400 font-semibold">표본 크기 ($n$)</span>
+                        <div class="flex items-baseline gap-1 mt-2">
+                            <span id="metric-n" class="text-2xl font-extrabold text-slate-800">100</span>
+                            <span class="text-xs text-slate-500 font-bold">명</span>
+                        </div>
+                    </div>
+                    <div class="bg-slate-50 rounded-xl p-4 border border-slate-100 flex flex-col justify-between">
+                        <span class="text-xs text-slate-400 font-semibold">표본 평균 ($\bar{x}$)</span>
+                        <div class="flex items-baseline gap-1 mt-2">
+                            <span id="metric-mean" class="text-2xl font-extrabold text-slate-800">12.50</span>
+                            <span class="text-xs text-slate-500 font-bold">시간</span>
+                        </div>
+                    </div>
+                    <div class="bg-slate-50 rounded-xl p-4 border border-slate-100 flex flex-col justify-between">
+                        <span class="text-xs text-slate-400 font-semibold">표본 표준편차 ($s$)</span>
+                        <div class="flex items-baseline gap-1 mt-2">
+                            <span id="metric-std" class="text-2xl font-extrabold text-slate-800">4.50</span>
+                            <span class="text-xs text-slate-500 font-bold">시간</span>
+                        </div>
+                    </div>
+                    <div class="bg-slate-50 rounded-xl p-4 border border-slate-100 flex flex-col justify-between">
+                        <span class="text-xs text-indigo-400 font-bold">표준 오차 ($SE$)</span>
+                        <div class="flex items-baseline gap-1 mt-2">
+                            <span id="metric-se" class="text-2xl font-extrabold text-indigo-600">0.45</span>
+                            <span class="text-xs text-indigo-500 font-bold">시간</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Interval Calculations & Formulas -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <!-- 95% Confidence Interval Card -->
+                    <div class="border border-indigo-100 rounded-xl p-4 bg-indigo-50/30 flex flex-col justify-between">
+                        <div>
+                            <div class="flex items-center justify-between">
+                                <span class="text-xs font-bold text-indigo-700">95% 신뢰구간 (Confidence Interval)</span>
+                                <span class="bg-indigo-100 text-indigo-800 text-[10px] font-bold px-2 py-0.5 rounded">Z = 1.96</span>
+                            </div>
+                            <div class="mt-3 text-lg font-extrabold text-slate-800">
+                                <span id="ci-95-range" class="tracking-tight">[11.62 ~ 13.38] 시간</span>
+                            </div>
+                        </div>
+                        <div class="mt-4 pt-3 border-t border-indigo-100/60">
+                            <span class="text-[10px] text-slate-400 block font-semibold mb-1">상세 계산식</span>
+                            <p class="text-[11px] font-mono text-slate-600 bg-white/70 p-1.5 rounded border border-indigo-50" id="ci-95-formula">
+                                12.50 ± 1.96 × (4.50 / √100)
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- 99% Confidence Interval Card -->
+                    <div class="border border-violet-100 rounded-xl p-4 bg-violet-50/30 flex flex-col justify-between">
+                        <div>
+                            <div class="flex items-center justify-between">
+                                <span class="text-xs font-bold text-violet-700">99% 신뢰구간 (Confidence Interval)</span>
+                                <span class="bg-violet-100 text-violet-800 text-[10px] font-bold px-2 py-0.5 rounded">Z = 2.576</span>
+                            </div>
+                            <div class="mt-3 text-lg font-extrabold text-slate-800">
+                                <span id="ci-99-range" class="tracking-tight">[11.34 ~ 13.66] 시간</span>
+                            </div>
+                        </div>
+                        <div class="mt-4 pt-3 border-t border-violet-100/60">
+                            <span class="text-[10px] text-slate-400 block font-semibold mb-1">상세 계산식</span>
+                            <p class="text-[11px] font-mono text-slate-600 bg-white/70 p-1.5 rounded border border-violet-50" id="ci-99-formula">
+                                12.50 ± 2.576 × (4.50 / √100)
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Visual Charts Display Grid -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                
+                <!-- Chart 1: Estimation Density Profile & Confidence Interval -->
+                <div class="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-sm flex flex-col h-[380px]">
+                    <div class="flex justify-between items-center mb-3">
+                        <h3 class="text-sm font-bold text-slate-900 flex items-center gap-1.5">
+                            <div class="w-1.5 h-3 bg-indigo-600 rounded-full"></div>
+                            표본평균 분포 및 신뢰구간 시각화
+                        </h3>
+                        <span class="text-[10px] text-slate-400 font-semibold">정규분포 기준</span>
+                    </div>
+                    <div class="relative flex-1 min-h-0 w-full">
+                        <canvas id="confidence-chart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Chart 2: Extracted Sample Histogram -->
+                <div class="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-sm flex flex-col h-[380px]">
+                    <div class="flex justify-between items-center mb-3">
+                        <h3 class="text-sm font-bold text-slate-900 flex items-center gap-1.5">
+                            <div class="w-1.5 h-3 bg-indigo-600 rounded-full"></div>
+                            추출된 표본 데이터 분포 히스토그램
+                        </h3>
+                        <span class="text-[10px] text-slate-400 font-semibold">데이터 실제 분포</span>
+                    </div>
+                    <div class="relative flex-1 min-h-0 w-full">
+                        <canvas id="histogram-chart"></canvas>
+                    </div>
+                </div>
+
+            </div>
+
+        </section>
+    </main>
+
+    <!-- Interactive JS Script -->
+    <script>
+        // ----------------------------------------------------
+        // 데이터 모델 & 기본 설정
+        // ----------------------------------------------------
+        
+        // 가상의 전체 모집단 핵심 모수 정의
+        const TRUE_MEAN = 14.5; // 전체 전국 고등학생 사교육 시간 모평균 설정
+
+        // 필터 조건 토글 상태 변수
+        let filters = {
+            1: false, // 고등학교 1,2학년만
+            2: false, // 일반고만
+            3: false  // 학군지 제외
+        };
+
+        // UI 요소 캐싱
+        const sampleSizeInput = document.getElementById('sample-size-input');
+        const sampleSizeValDisplay = document.getElementById('sample-size-val');
+        
+        // 차트 인스턴스 전역 저장소
+        let confidenceChart = null;
+        let histogramChart = null;
+
+        // ----------------------------------------------------
+        // 표본 추출 및 통계 수치 시뮬레이션 핵심 로직
+        // ----------------------------------------------------
+
+        // 조건 조합에 기반한 목표 모표준편차 반환 함수
+        // 조건이 활성화 될 수록 고등학생들의 사교육 참여 편차가 균일해진다고 가정
+        function getStandardDeviationByConditions() {
+            let baseSD = 6.2; // 전체 고등학생의 기본 표준편차 범위
+            
+            // 각 토글 적용시 인구 다양성이 통제되어 편차가 유의미하게 좁아짐을 가정
+            if (filters[1]) baseSD -= 0.8; // 학년 축소로 편차 감소 (1·2학년)
+            if (filters[2]) baseSD -= 1.1; // 학교형태 일원화 (일반고만)
+            if (filters[3]) baseSD -= 1.4; // 학군지 제외로 초고액/초고강도 아웃라이어 완화
+            
+            return Math.max(2.0, baseSD); // 최하 한계 표준편차 2.0으로 설정
+        }
+
+        // 박스-뮬러 변환을 활용한 랜덤 가우시안 정규분포 난수 생성기
+        function randomNormal(mean, stdDev) {
+            let u = 0, v = 0;
+            while(u === 0) u = Math.random(); 
+            while(v === 0) v = Math.random();
+            let num = Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+            return num * stdDev + mean;
+        }
+
+        // 실제 표본 추출 프로세스 시뮬레이션
+        function generateSampleData(n, mean, sd) {
+            let samples = [];
+            for (let i = 0; i < n; i++) {
+                let val = randomNormal(mean, sd);
+                // 주당 사교육 시간은 음수가 될 수 없으므로 최소 0으로 보정
+                if (val < 0) val = 0;
+                samples.push(val);
+            }
+            return samples;
+        }
+
+        // 기초 통계량 계산기
+        function calculateStatistics(samples) {
+            const n = samples.length;
+            const mean = samples.reduce((sum, val) => sum + val, 0) / n;
+            
+            // 분산 및 편차 연산
+            const variance = samples.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / (n - 1);
+            const stdDev = Math.sqrt(variance);
+            const standardError = stdDev / Math.sqrt(n);
+            
+            return {
+                n,
+                mean,
+                stdDev,
+                standardError
+            };
+        }
+
+        // ----------------------------------------------------
+        // UI 인터랙션 & 상태 갱신 함수
+        // ----------------------------------------------------
+
+        function toggleCondition(idx) {
+            filters[idx] = !filters[idx];
+            
+            // 토글 버튼 외관 실시간 업데이트
+            const btn = document.getElementById(`toggle-${idx}`);
+            const icon = document.getElementById(`toggle-${idx}-icon`);
+            const badge = document.getElementById(`toggle-${idx}-badge`);
+
+            if (filters[idx]) {
+                btn.classList.remove('bg-slate-50', 'border-slate-200');
+                btn.classList.add('bg-indigo-50/50', 'border-indigo-500', 'ring-2', 'ring-indigo-50');
+                icon.classList.remove('border-slate-300');
+                icon.classList.add('border-indigo-600');
+                icon.firstElementChild.classList.remove('bg-white');
+                icon.firstElementChild.classList.add('bg-indigo-600');
+                badge.innerText = '선택됨';
+                badge.className = "text-[10px] bg-indigo-600 text-white font-bold px-2 py-0.5 rounded-md";
+            } else {
+                btn.classList.add('bg-slate-50', 'border-slate-200');
+                btn.classList.remove('bg-indigo-50/50', 'border-indigo-500', 'ring-2', 'ring-indigo-50');
+                icon.classList.add('border-slate-300');
+                icon.classList.remove('border-indigo-600');
+                icon.firstElementChild.classList.add('bg-white');
+                icon.firstElementChild.classList.remove('bg-indigo-600');
+                badge.innerText = '해제됨';
+                badge.className = "text-[10px] bg-slate-200 text-slate-600 font-bold px-2 py-0.5 rounded-md";
+            }
+
+            // 조건이 바뀜과 동시에 즉각적으로 표본을 재추출해 실시간성 부여
+            resample();
+        }
+
+        // ----------------------------------------------------
+        // 메인 업데이트 컨트롤러
+        // ----------------------------------------------------
+        
+        function resample() {
+            const n = parseInt(sampleSizeInput.value);
+            sampleSizeValDisplay.innerText = n + ' 명';
+
+            // 현재 가상의 목표 SD 획득
+            const targetSD = getStandardDeviationByConditions();
+            
+            // 데이터 확보
+            const sampleData = generateSampleData(n, TRUE_MEAN, targetSD);
+            const stats = calculateStatistics(sampleData);
+
+            // 화면상 기초 메트릭 바인딩
+            document.getElementById('metric-n').innerText = stats.n;
+            document.getElementById('metric-mean').innerText = stats.mean.toFixed(2);
+            document.getElementById('metric-std').innerText = stats.stdDev.toFixed(2);
+            document.getElementById('metric-se').innerText = stats.standardError.toFixed(2);
+
+            // 신뢰구간 산출 (95%: 1.96 / 99%: 2.576)
+            const ci95_margin = 1.96 * stats.standardError;
+            const ci95_lower = stats.mean - ci95_margin;
+            const ci95_upper = stats.mean + ci95_margin;
+
+            const ci99_margin = 2.576 * stats.standardError;
+            const ci99_lower = stats.mean - ci99_margin;
+            const ci99_upper = stats.mean + ci99_margin;
+
+            // 신뢰구간 텍스트 바인딩
+            document.getElementById('ci-95-range').innerText = `[${Math.max(0, ci95_lower).toFixed(2)} ~ ${ci95_upper.toFixed(2)}] 시간`;
+            document.getElementById('ci-99-range').innerText = `[${Math.max(0, ci99_lower).toFixed(2)} ~ ${ci99_upper.toFixed(2)}] 시간`;
+
+            // 공식 매칭 텍스트 바인딩
+            document.getElementById('ci-95-formula').innerText = 
+                `${stats.mean.toFixed(2)} ± 1.96 × (${stats.stdDev.toFixed(2)} / √${stats.n}) = [${Math.max(0, ci95_lower).toFixed(2)}, ${ci95_upper.toFixed(2)}]`;
+            document.getElementById('ci-99-formula').innerText = 
+                `${stats.mean.toFixed(2)} ± 2.576 × (${stats.stdDev.toFixed(2)} / √${stats.n}) = [${Math.max(0, ci99_lower).toFixed(2)}, ${ci99_upper.toFixed(2)}]`;
+
+            // 차트 2개 일괄 업데이트
+            updateConfidenceChart(stats, ci95_lower, ci95_upper, ci99_lower, ci99_upper);
+            updateHistogramChart(sampleData, stats.mean, stats.stdDev);
+        }
+
+        // ----------------------------------------------------
+        // Chart.js 시각화 렌더링 함수
+        // ----------------------------------------------------
+
+        // 정규분포 함수 계산식
+        function normalPDF(x, mean, stdDev) {
+            return (1 / (stdDev * Math.sqrt(2 * Math.PI))) * Math.exp(-0.5 * Math.pow((x - mean) / stdDev, 2));
+        }
+
+        function updateConfidenceChart(stats, ci95_l, ci95_u, ci99_l, ci99_u) {
+            const ctx = document.getElementById('confidence-chart').getContext('2d');
+            
+            // x범위 생성 (표본평균 분포는 매우 모여있으므로, 표준오차 기반으로 동적 세그먼트 생성)
+            const xData = [];
+            const yData = [];
+            
+            // 축 고정 또는 동적 줌인을 위해 SE 크기에 맞춰 유연하게 변동
+            const se = stats.standardError;
+            const mean = stats.mean;
+            const startX = mean - 4.5 * se;
+            const endX = mean + 4.5 * se;
+            const step = (endX - startX) / 100;
+
+            for (let i = 0; i <= 100; i++) {
+                let x = startX + (i * step);
+                xData.push(x);
+                yData.push(normalPDF(x, mean, se));
+            }
+
+            // 차트 데이터셋 설정
+            const data = {
+                labels: xData,
+                datasets: [
+                    {
+                        label: '표본평균 추정 정규곡선',
+                        data: yData,
+                        borderColor: '#4f46e5',
+                        borderWidth: 2.5,
+                        pointRadius: 0,
+                        fill: false,
+                        tension: 0.4
+                    }
+                ]
+            };
+
+            // 차트 재생성 또는 업데이트 처리
+            if (confidenceChart) {
+                confidenceChart.data = data;
+                // 플러그인을 통한 신뢰구간 가이드선 추가 갱신
+                confidenceChart.options.plugins.annotation.annotations = getAnnotations(mean, ci95_l, ci95_u, ci99_l, ci99_u);
+                confidenceChart.update('none'); // 깜빡임 없는 업데이트
+            } else {
+                confidenceChart = new Chart(ctx, {
+                    type: 'line',
+                    data: data,
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                display: false
+                            },
+                            tooltip: {
+                                enabled: true,
+                                callbacks: {
+                                    label: function(context) {
+                                        return `값: ${context.parsed.x.toFixed(2)}시간, 확률밀도: ${context.parsed.y.toFixed(4)}`;
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            x: {
+                                type: 'linear',
+                                position: 'bottom',
+                                grid: {
+                                    color: '#f1f5f9'
+                                },
+                                ticks: {
+                                    font: { size: 10 },
+                                    callback: function(value) { return value.toFixed(1) + 'h'; }
+                                }
+                            },
+                            y: {
+                                display: false,
+                                grid: { display: false }
+                            }
+                        }
+                    }
+                });
+                
+                // 임의의 어노테이션 구조 생성 및 병합 함수 처리 호출
+                confidenceChart.options.plugins.annotation = {
+                    annotations: getAnnotations(mean, ci95_l, ci95_u, ci99_l, ci99_u)
+                };
+                confidenceChart.update();
+            }
+        }
+
+        // 정규분포 그래프에 신뢰구간 가이드라인 및 표식 주석 생성 함수
+        function getAnnotations(mean, ci95_l, ci95_u, ci99_l, ci99_u) {
+            return {
+                // 참평균 위치선
+                meanLine: {
+                    type: 'line',
+                    xMin: mean,
+                    xMax: mean,
+                    borderColor: 'rgba(79, 70, 229, 0.45)',
+                    borderWidth: 1.5,
+                    borderDash: [4, 4],
+                    label: {
+                        content: '추정된 평균',
+                        enabled: true,
+                        position: 'start',
+                        backgroundColor: 'rgba(79, 70, 229, 0.8)',
+                        font: { size: 10, weight: 'bold' }
+                    }
+                },
+                // 모평균 위치선
+                trueMeanLine: {
+                    type: 'line',
+                    xMin: TRUE_MEAN,
+                    xMax: TRUE_MEAN,
+                    borderColor: 'rgba(245, 158, 11, 0.9)',
+                    borderWidth: 2,
+                    label: {
+                        content: `참평균(${TRUE_MEAN})`,
+                        enabled: true,
+                        position: 'end',
+                        backgroundColor: 'rgba(245, 158, 11, 0.95)',
+                        font: { size: 10, weight: 'bold' }
+                    }
+                },
+                // 95% 구간 표시용 보조박스/라인 데코레이션
+                ci95Range: {
+                    type: 'box',
+                    xMin: ci95_l,
+                    xMax: ci95_u,
+                    backgroundColor: 'rgba(79, 70, 229, 0.08)',
+                    borderColor: 'rgba(79, 70, 229, 0.35)',
+                    borderWidth: 1,
+                    label: {
+                        content: '95% 신뢰구간',
+                        enabled: true,
+                        position: 'center',
+                        font: { size: 9, weight: '600' },
+                        color: 'rgba(79, 70, 229, 0.8)'
+                    }
+                }
+            };
+        }
+
+        // 히스토그램 생성 및 업데이트 함수
+        function updateHistogramChart(samples, mean, sd) {
+            const ctx = document.getElementById('histogram-chart').getContext('2d');
+            
+            // 데이터 범위에 따른 구간(Bin) 설정
+            // 주당 사교육 시간은 대체로 0에서 최대 30시간 이내 분포
+            const binCount = 15;
+            const minBound = 0;
+            const maxBound = 30;
+            const binWidth = (maxBound - minBound) / binCount;
+            
+            const bins = Array(binCount).fill(0);
+            const binLabels = [];
+
+            // 구간 라벨 생성
+            for (let i = 0; i < binCount; i++) {
+                const start = minBound + (i * binWidth);
+                const end = start + binWidth;
+                binLabels.push(`${start.toFixed(0)}-${end.toFixed(0)}`);
+            }
+
+            // 데이터를 해당되는 구간에 투입(Counting)
+            samples.forEach(val => {
+                let binIdx = Math.floor((val - minBound) / binWidth);
+                if (binIdx < 0) binIdx = 0;
+                if (binIdx >= binCount) binIdx = binCount - 1;
+                bins[binIdx]++;
+            });
+
+            const data = {
+                labels: binLabels,
+                datasets: [{
+                    label: '표본내 학생 수 (명)',
+                    data: bins,
+                    backgroundColor: 'rgba(99, 102, 241, 0.75)',
+                    hoverBackgroundColor: 'rgba(79, 70, 229, 0.95)',
+                    borderColor: '#4f46e5',
+                    borderWidth: 1,
+                    borderRadius: 4,
+                    barPercentage: 0.9
+                }]
+            };
+
+            if (histogramChart) {
+                histogramChart.data = data;
+                histogramChart.update('none');
+            } else {
+                histogramChart = new Chart(ctx, {
+                    type: 'bar',
+                    data: data,
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                display: false
+                            }
+                        },
+                        scales: {
+                            x: {
+                                grid: {
+                                    display: false
+                                },
+                                ticks: {
+                                    font: { size: 9 },
+                                    color: '#64748b'
+                                }
+                            },
+                            y: {
+                                grid: {
+                                    color: '#f1f5f9'
+                                },
+                                ticks: {
+                                    precision: 0,
+                                    font: { size: 10 },
+                                    color: '#64748b'
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+        }
+
+        // ----------------------------------------------------
+        // 초기 구동 및 리스너 등록
+        // ----------------------------------------------------
+
+        // 슬라이더 이벤트 연계 설정
+        sampleSizeInput.addEventListener('input', resample);
+
+        // Chart.js Annotation 플러그인 로드 대기 및 로딩 완료 후 실행
+        // CDN dynamic loading annotation plugin
+        const script = document.createElement('script');
+        script.src = 'https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@2.0.1/dist/chartjs-plugin-annotation.min.js';
+        script.onload = () => {
+            // 플러그인 등록
+            Chart.register(window['chartjs-plugin-annotation']);
+            // 초기 렌더링
+            resample();
+        };
+        document.head.appendChild(script);
+
+    </script>
+</body>
+</html>
